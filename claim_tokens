@@ -1,0 +1,56 @@
+from solana.account import Account
+from solana.rpc.api import Client
+from solana.transaction import Transaction, TransactionInstruction, encode_data, decode_data
+
+# Устанавливаем параметры для подключения к сети Solana
+rpc_url = 'https://api.mainnet-beta.solana.com'  # Замените на URL RPC ноды Solana
+private_key = 'YOUR_PRIVATE_KEY'  # Замените на ваш приватный ключ
+contract_address = 'YOUR_CONTRACT_ADDRESS'  # Замените на адрес контракта
+instruction_data = b''  # Данные инструкции
+
+# Инициализируем клиент Solana
+client = Client(rpc_url)
+
+# Получаем аккаунт из приватного ключа
+account = Account.private_key_bytes(private_key)
+
+def claim_tokens():
+    try:
+        # Получаем информацию о контракте
+        contract_info = client.get_account_info(contract_address)
+        if not contract_info:
+            print("Ошибка: Контракт не найден")
+            return
+
+        # Создаем транзакцию для клейма токенов
+        instructions = [
+            TransactionInstruction(
+                keys=[
+                    {
+                        'pubkey': account.public_key(),
+                        'is_signer': True,
+                        'is_writable': False
+                    },
+                    {
+                        'pubkey': contract_address,
+                        'is_signer': False,
+                        'is_writable': True
+                    }
+                ],
+                program_id=contract_info['owner'],
+                data=encode_data(instruction_data)
+            )
+        ]
+
+        # Отправляем транзакцию
+        tx = Transaction().add(*instructions)
+        tx.recent_blockhash = client.get_recent_blockhash()['result']
+        signed_tx = client.sign_transaction(tx, account)
+        tx_id = client.send_raw_transaction(signed_tx)
+        print(f"Транзакция отправлена: {tx_id}")
+
+    except Exception as e:
+        print(f"Произошла ошибка: {e}")
+
+# Вызываем функцию клейма токенов
+claim_tokens()
